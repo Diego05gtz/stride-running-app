@@ -3,11 +3,11 @@ import { generateSimulatedNextCoords, calculateHaversineDistance } from './geoMa
 
 const RUNS_STORAGE_KEY = 'stride_runs_v1';
 const PREFS_STORAGE_KEY = 'stride_prefs_v1';
+export const WEEKLY_GOAL_STORAGE_KEY = 'stride_weekly_goal_km';
 
 const DEFAULT_PREFS: UserPreferences = {
   unit: 'km',
   weeklyGoalKm: 25,
-  simulationMode: true,
   accent: 'mint',
   voiceCoachEnabled: true,
   autoPauseEnabled: true,
@@ -179,8 +179,15 @@ export function deleteSavedRun(id: string): RunActivity[] {
 export function loadUserPreferences(): UserPreferences {
   try {
     const raw = localStorage.getItem(PREFS_STORAGE_KEY);
-    if (!raw) return DEFAULT_PREFS;
-    return { ...DEFAULT_PREFS, ...JSON.parse(raw) };
+    const parsed = raw ? { ...DEFAULT_PREFS, ...JSON.parse(raw) } : { ...DEFAULT_PREFS };
+    const savedGoalRaw = localStorage.getItem(WEEKLY_GOAL_STORAGE_KEY);
+    if (savedGoalRaw !== null) {
+      const savedGoalNum = Number(savedGoalRaw);
+      if (Number.isFinite(savedGoalNum) && savedGoalNum > 0) {
+        parsed.weeklyGoalKm = savedGoalNum;
+      }
+    }
+    return parsed;
   } catch {
     return DEFAULT_PREFS;
   }
@@ -189,6 +196,7 @@ export function loadUserPreferences(): UserPreferences {
 export function saveUserPreferences(prefs: UserPreferences): void {
   try {
     localStorage.setItem(PREFS_STORAGE_KEY, JSON.stringify(prefs));
+    localStorage.setItem(WEEKLY_GOAL_STORAGE_KEY, String(prefs.weeklyGoalKm));
   } catch {
     // ignore
   }

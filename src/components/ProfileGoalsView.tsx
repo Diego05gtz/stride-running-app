@@ -1,7 +1,5 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Satellite,
-  Sparkles,
   Target,
   Palette,
   Ruler,
@@ -11,6 +9,7 @@ import {
   Download,
   Upload,
   Check,
+  Pencil,
 } from 'lucide-react';
 import {
   AccentTheme,
@@ -19,7 +18,11 @@ import {
   UserPreferences,
 } from '../types/run';
 import { formatDistance, formatPace } from '../utils/geoMath';
-import { exportBackupJson, parseBackupJsonFile } from '../utils/storage';
+import {
+  exportBackupJson,
+  parseBackupJsonFile,
+  WEEKLY_GOAL_STORAGE_KEY,
+} from '../utils/storage';
 import { ACCENT_PALETTES } from '../utils/theme';
 
 interface ProfileGoalsViewProps {
@@ -44,6 +47,27 @@ export const ProfileGoalsView: React.FC<ProfileGoalsViewProps> = ({
   const palette = ACCENT_PALETTES[prefs.accent];
   const backupInputRef = useRef<HTMLInputElement | null>(null);
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
+  const [customGoalInput, setCustomGoalInput] = useState<string>(
+    String(prefs.weeklyGoalKm)
+  );
+  const [goalSavedFlash, setGoalSavedFlash] = useState(false);
+
+  useEffect(() => {
+    setCustomGoalInput(String(prefs.weeklyGoalKm));
+  }, [prefs.weeklyGoalKm]);
+
+  const handleSaveWeeklyGoalKm = (rawKm: number) => {
+    const clampedKm = Math.min(500, Math.max(1, Math.round(rawKm)));
+    try {
+      localStorage.setItem(WEEKLY_GOAL_STORAGE_KEY, String(clampedKm));
+    } catch {
+      // ignore
+    }
+    onUpdatePrefs({ weeklyGoalKm: clampedKm });
+    setCustomGoalInput(String(clampedKm));
+    setGoalSavedFlash(true);
+    window.setTimeout(() => setGoalSavedFlash(false), 1800);
+  };
 
   // Calcular distancia de los últimos 7 días
   const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -102,7 +126,7 @@ export const ProfileGoalsView: React.FC<ProfileGoalsViewProps> = ({
   const strokeDashoffset = circumference * (1 - progressRatio);
 
   return (
-    <div className="w-full h-full overflow-y-auto px-5 pt-8 pb-28 max-w-lg mx-auto">
+    <div className="w-full h-[100dvh] min-h-[100dvh] overflow-y-auto px-5 pt-8 pb-28 max-w-lg mx-auto">
       <header className="text-center mb-5">
         <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
           Objetivo Semanal
@@ -203,20 +227,71 @@ export const ProfileGoalsView: React.FC<ProfileGoalsViewProps> = ({
 
       {/* CONTROLES RÁPIDOS Y PREFERENCIAS */}
       <div className="mt-4 space-y-4">
-        {/* Selector de Meta Semanal */}
+        {/* Selector de Meta Semanal (Presets + Input Manual con persistencia en stride_weekly_goal_km) */}
         <div className="rounded-3xl bg-[#10121A] border border-white/[0.07] p-5">
-          <div className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-3">
-            <Target className={`w-4 h-4 ${palette.textClass}`} />
-            <span>Meta Semanal ({prefs.unit})</span>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              <Target className={`w-4 h-4 ${palette.textClass}`} />
+              <span>Meta Semanal (km)</span>
+            </div>
+            {goalSavedFlash && (
+              <span
+                className={`text-[11px] font-semibold flex items-center gap-1 ${palette.textClass}`}
+              >
+                <Check className="w-3.5 h-3.5" />
+                Guardada
+              </span>
+            )}
           </div>
+
+          {/* Input manual limpio para establecer cualquier Meta Semanal en km */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const parsed = Number(customGoalInput);
+              if (Number.isFinite(parsed) && parsed > 0) {
+                handleSaveWeeklyGoalKm(parsed);
+              }
+            }}
+            className="flex items-center gap-2 mb-3"
+          >
+            <div className="relative flex-1 flex items-center rounded-2xl bg-[#090A0F] border border-white/10 px-3.5 py-2 focus-within:border-white/30 transition">
+              <Pencil className="w-3.5 h-3.5 text-zinc-500 mr-2 shrink-0" />
+              <input
+                type="number"
+                min={1}
+                max={500}
+                step={1}
+                inputMode="numeric"
+                value={customGoalInput}
+                onChange={(e) => setCustomGoalInput(e.target.value)}
+                placeholder="Ej. 30"
+                className="w-full bg-transparent font-display font-bold text-base text-white tabular-nums focus:outline-none"
+                aria-label="Meta semanal manual en kilómetros"
+              />
+              <span className="text-xs font-semibold text-zinc-500 ml-1">
+                km / sem
+              </span>
+            </div>
+
+            <button
+              type="submit"
+              className={`px-4 py-2.5 rounded-2xl font-display font-bold text-xs uppercase tracking-wider transition active:scale-95 ${palette.bgClass} text-[#090A0F]`}
+            >
+              Guardar
+            </button>
+          </form>
+
+          {/* Botones de selección rápida */}
           <div className="grid grid-cols-4 gap-2">
             {GOAL_PRESETS_KM.map((goalKm) => {
               const active = prefs.weeklyGoalKm === goalKm;
               return (
                 <button
                   key={goalKm}
-                  onClick={() => onUpdatePrefs({ weeklyGoalKm: goalKm })}
-                  className={`py-2.5 rounded-2xl font-display font-bold text-sm tabular-nums transition ${
+                  type="button"
+                  onClick={() => handleSaveWeeklyGoalKm(goalKm)}
+                  className={`py-2 rounded-2xl font-display font-bold text-xs tabular-nums transition ${
                     active
                       ? `${palette.bgClass} text-[#090A0F]`
                       : 'bg-white/5 text-zinc-300 hover:bg-white/10'
@@ -286,61 +361,26 @@ export const ProfileGoalsView: React.FC<ProfileGoalsViewProps> = ({
           </div>
         </div>
 
-        {/* Selector de Unidades (km / mi) y Motor GPS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="rounded-3xl bg-[#10121A] border border-white/[0.07] p-5">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-3">
-              <Ruler className={`w-4 h-4 ${palette.textClass}`} />
-              <span>Unidades</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 bg-[#090A0F] p-1 rounded-2xl border border-white/5">
-              {(['km', 'mi'] as UnitSystem[]).map((u) => (
-                <button
-                  key={u}
-                  onClick={() => onUpdatePrefs({ unit: u })}
-                  className={`py-2 rounded-xl text-xs font-bold uppercase transition ${
-                    prefs.unit === u
-                      ? `${palette.bgClass} text-[#090A0F]`
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  {u === 'km' ? 'Kilómetros' : 'Millas'}
-                </button>
-              ))}
-            </div>
+        {/* Selector de Unidades (km / mi) */}
+        <div className="rounded-3xl bg-[#10121A] border border-white/[0.07] p-5">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-3">
+            <Ruler className={`w-4 h-4 ${palette.textClass}`} />
+            <span>Unidades de Distancia y Ritmo</span>
           </div>
-
-          <div className="rounded-3xl bg-[#10121A] border border-white/[0.07] p-5">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-3">
-              {prefs.simulationMode ? (
-                <Sparkles className="w-4 h-4 text-[#00D9F5]" />
-              ) : (
-                <Satellite className={`w-4 h-4 ${palette.textClass}`} />
-              )}
-              <span>Motor de Rastreo</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 bg-[#090A0F] p-1 rounded-2xl border border-white/5">
+          <div className="grid grid-cols-2 gap-2 bg-[#090A0F] p-1 rounded-2xl border border-white/5">
+            {(['km', 'mi'] as UnitSystem[]).map((u) => (
               <button
-                onClick={() => onUpdatePrefs({ simulationMode: false })}
-                className={`py-2 rounded-xl text-xs font-bold transition ${
-                  !prefs.simulationMode
+                key={u}
+                onClick={() => onUpdatePrefs({ unit: u })}
+                className={`py-2.5 rounded-xl text-xs font-bold uppercase transition ${
+                  prefs.unit === u
                     ? `${palette.bgClass} text-[#090A0F]`
                     : 'text-zinc-400 hover:text-white'
                 }`}
               >
-                GPS Real
+                {u === 'km' ? 'Kilómetros (km)' : 'Millas (mi)'}
               </button>
-              <button
-                onClick={() => onUpdatePrefs({ simulationMode: true })}
-                className={`py-2 rounded-xl text-xs font-bold transition ${
-                  prefs.simulationMode
-                    ? 'bg-[#00D9F5] text-[#090A0F]'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                Simulador
-              </button>
-            </div>
+            ))}
           </div>
         </div>
 

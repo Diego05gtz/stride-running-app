@@ -3,8 +3,6 @@ import {
   Play,
   Pause,
   Square,
-  Sparkles,
-  Satellite,
   ChevronUp,
   ChevronDown,
   Smartphone,
@@ -55,7 +53,6 @@ interface LiveRunViewProps {
   path: GeoPoint[];
   splits: Split[];
   isWakeLockActive: boolean;
-  simulationMode: boolean;
   voiceCoachEnabled: boolean;
   autoPauseEnabled: boolean;
   weightKg: number;
@@ -66,7 +63,6 @@ interface LiveRunViewProps {
   onSelectGoalDistance: (goalKm: GoalDistanceKm) => void;
   onCalibratePosition: (lat: number, lng: number) => void;
   onResetCalibration: () => void;
-  onToggleSimulation: (enabled: boolean) => void;
   onToggleVoiceCoach: (enabled: boolean) => void;
   onToggleAutoPause: (enabled: boolean) => void;
   onStart: () => void;
@@ -94,7 +90,6 @@ export const LiveRunView: React.FC<LiveRunViewProps> = ({
   path,
   splits,
   isWakeLockActive,
-  simulationMode,
   voiceCoachEnabled,
   autoPauseEnabled,
   weightKg,
@@ -105,7 +100,6 @@ export const LiveRunView: React.FC<LiveRunViewProps> = ({
   onSelectGoalDistance,
   onCalibratePosition,
   onResetCalibration,
-  onToggleSimulation,
   onToggleVoiceCoach,
   onToggleAutoPause,
   onStart,
@@ -165,7 +159,7 @@ export const LiveRunView: React.FC<LiveRunViewProps> = ({
     e.stopPropagation();
     if (unlockTimerRef.current) clearInterval(unlockTimerRef.current);
     const startTime = Date.now();
-    const holdDurationMs = 1200; // 1.2 segundos exactos para desbloquear
+    const holdDurationMs = 1500; // 1.5 segundos exactos para desbloquear
 
     unlockTimerRef.current = window.setInterval(() => {
       const elapsed = Date.now() - startTime;
@@ -222,7 +216,7 @@ export const LiveRunView: React.FC<LiveRunViewProps> = ({
     };
   }, []);
 
-  // Configuración visual del indicador de señal GPS mostrando metros exactos de precisión
+  // Indicador dinámico único de señal GPS mostrando metros exactos de precisión
   const signalMeta = {
     excellent: {
       dotClass: 'bg-[#00F5A0]',
@@ -234,15 +228,11 @@ export const LiveRunView: React.FC<LiveRunViewProps> = ({
     },
     poor: {
       dotClass: 'bg-amber-400',
-      label: `GPS Básico ${accuracyMeters ? `(±${accuracyMeters}m)` : '(Wi-Fi)'}`,
+      label: `GPS Conectado ${accuracyMeters ? `(±${accuracyMeters}m)` : ''}`,
     },
     searching: {
       dotClass: 'bg-amber-500',
       label: 'Buscando GPS...',
-    },
-    simulated: {
-      dotClass: 'bg-[#00D9F5]',
-      label: 'Simulador Activo',
     },
   }[signalQuality];
 
@@ -254,7 +244,7 @@ export const LiveRunView: React.FC<LiveRunViewProps> = ({
   );
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-[#090A0F]">
+    <div className="relative w-full h-[100dvh] min-h-[100dvh] overflow-hidden bg-[#090A0F]">
       {/* 1. MAPA INTERACTIVO 100% PANTALLA */}
       <LiveMap
         currentPosition={currentPosition}
@@ -276,51 +266,41 @@ export const LiveRunView: React.FC<LiveRunViewProps> = ({
         <div
           onClick={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
-          className="fixed inset-0 z-50 bg-[#000000] flex flex-col items-center justify-between py-14 px-6 select-none touch-none"
+          className="fixed inset-0 z-[100] h-[100dvh] min-h-[100dvh] bg-[#000000] flex flex-col items-center justify-between py-14 px-6 select-none touch-none"
+          style={{
+            paddingTop: 'max(3.5rem, env(safe-area-inset-top))',
+            paddingBottom: 'max(3.5rem, env(safe-area-inset-bottom))',
+          }}
         >
-          {/* Hora actual e indicador tenue de WakeLock */}
-          <div className="flex flex-col items-center gap-1 text-zinc-600">
-            <span className="font-display text-2xl font-bold tabular-nums tracking-widest">
+          {/* Hora actual en gris muy oscuro */}
+          <div className="flex flex-col items-center gap-1 text-zinc-700">
+            <span className="font-display text-3xl font-bold tabular-nums tracking-widest text-zinc-600">
               {wallClockTime}
             </span>
-            <span className="text-[10px] uppercase tracking-[0.25em] text-zinc-700">
-              Modo Bolsillo OLED Activo • GPS Rastreando
-            </span>
           </div>
 
-          {/* Métricas centrales en gris tenue (bajo consumo OLED) */}
-          <div className="flex flex-col items-center text-center my-auto">
-            <span className="text-[10px] uppercase tracking-[0.25em] text-zinc-700 mb-1">
-              Ritmo Actual ({unit === 'km' ? 'min/km' : 'min/mi'})
-            </span>
-            <div className="font-display text-7xl font-extrabold text-zinc-500 tabular-nums tracking-tight leading-none">
-              {formatPace(currentPaceSecPerKm, unit)}
+          {/* Distancia y Ritmo en gris muy oscuro (mínimo consumo OLED manteniendo WakeLock) */}
+          <div className="flex flex-col items-center text-center my-auto gap-8">
+            <div className="flex flex-col items-center">
+              <div className="font-display text-7xl font-extrabold text-zinc-700 tabular-nums tracking-tight leading-none">
+                {formatDistance(distanceKm, unit)}
+              </div>
+              <span className="text-[10px] uppercase tracking-[0.25em] text-zinc-800 mt-2">
+                Distancia ({unit})
+              </span>
             </div>
 
-            <div className="mt-8 flex items-center gap-10 text-zinc-600">
-              <div className="flex flex-col items-center">
-                <span className="font-display text-4xl font-bold text-zinc-500 tabular-nums">
-                  {formatDistance(distanceKm, unit)}
-                </span>
-                <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-700 mt-1">
-                  Distancia ({unit})
-                </span>
+            <div className="flex flex-col items-center">
+              <div className="font-display text-5xl font-bold text-zinc-700 tabular-nums tracking-tight leading-none">
+                {formatPace(currentPaceSecPerKm, unit)}
               </div>
-
-              <div className="h-8 w-px bg-zinc-900" />
-
-              <div className="flex flex-col items-center">
-                <span className="font-display text-4xl font-bold text-zinc-500 tabular-nums">
-                  {formatDuration(durationSeconds)}
-                </span>
-                <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-700 mt-1">
-                  Tiempo
-                </span>
-              </div>
+              <span className="text-[10px] uppercase tracking-[0.25em] text-zinc-800 mt-2">
+                Ritmo ({unit === 'km' ? 'min/km' : 'min/mi'})
+              </span>
             </div>
           </div>
 
-          {/* Botón central tenue: Mantener presionado 1.2s para desbloquear */}
+          {/* Botón central tenue: Mantener presionado 1.5s para desbloquear */}
           <div className="w-full max-w-xs flex flex-col items-center gap-2">
             <button
               onMouseDown={startHoldToUnlockPocket}
@@ -329,20 +309,17 @@ export const LiveRunView: React.FC<LiveRunViewProps> = ({
               onTouchStart={startHoldToUnlockPocket}
               onTouchEnd={cancelHoldToUnlockPocket}
               onTouchCancel={cancelHoldToUnlockPocket}
-              className="relative overflow-hidden w-full py-4 px-5 rounded-2xl bg-zinc-950 border border-zinc-800/80 text-zinc-500 font-display font-semibold text-xs uppercase tracking-wider flex items-center justify-center gap-2 select-none active:scale-[0.99] transition"
+              className="relative overflow-hidden w-full py-4 px-5 rounded-2xl bg-zinc-950 border border-zinc-900 text-zinc-600 font-display font-semibold text-xs uppercase tracking-wider flex items-center justify-center gap-2 select-none active:scale-[0.99] transition"
             >
               <div
-                className="absolute inset-y-0 left-0 bg-zinc-800/70 transition-all duration-75"
+                className="absolute inset-y-0 left-0 bg-zinc-800/60 transition-all duration-75"
                 style={{ width: `${unlockProgress}%` }}
               />
               <Unlock className="w-4 h-4 relative z-10" />
               <span className="relative z-10">
-                🔓 Mantén presionado para desbloquear
+                Mantén presionado 1.5s para desbloquear
               </span>
             </button>
-            <span className="text-[10px] text-zinc-800">
-              1.2s para evitar toques accidentales en el bolsillo
-            </span>
           </div>
         </div>
       )}
@@ -351,7 +328,7 @@ export const LiveRunView: React.FC<LiveRunViewProps> = ({
       {countdownValue !== null && (
         <div
           onClick={onSkipCountdown}
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#090A0F]/90 backdrop-blur-2xl cursor-pointer select-none"
+          className="fixed inset-0 z-[100] h-[100dvh] min-h-[100dvh] flex flex-col items-center justify-center bg-[#090A0F]/90 backdrop-blur-2xl cursor-pointer select-none"
         >
           <span className="text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400 mb-4">
             Preparando Salida
@@ -369,8 +346,8 @@ export const LiveRunView: React.FC<LiveRunViewProps> = ({
         </div>
       )}
 
-      {/* 2. BARRA SUPERIOR FLOTANTE: Señal GPS + Audio Coach + Interruptor Híbrido */}
-      <header className="absolute top-0 inset-x-0 z-20 px-4 pt-4 flex items-center justify-between gap-2 pointer-events-none">
+      {/* 2. BARRA SUPERIOR FLOTANTE: Únicamente Indicador Dinámico GPS Conectado (±Xm) + Audio Coach */}
+      <header className="absolute top-0 left-0 right-0 z-50 px-4 pt-4 flex items-center justify-between gap-2 pointer-events-none">
         {/* Indicador minimalista de calidad GPS */}
         <div className="pointer-events-auto flex items-center gap-2.5 rounded-full bg-[#10121A]/85 backdrop-blur-xl border border-white/10 px-3.5 py-2 shadow-lg">
           <span className="relative flex h-2.5 w-2.5">
@@ -394,7 +371,7 @@ export const LiveRunView: React.FC<LiveRunViewProps> = ({
           )}
         </div>
 
-        {/* Controles Superiores Derecha: Entrenador de Voz + Interruptor Híbrido */}
+        {/* Control Superior Derecha: Entrenador de Voz */}
         <div className="pointer-events-auto flex items-center gap-2">
           <button
             onClick={() => onToggleVoiceCoach(!voiceCoachEnabled)}
@@ -416,33 +393,11 @@ export const LiveRunView: React.FC<LiveRunViewProps> = ({
               <VolumeX className="w-4 h-4" />
             )}
           </button>
-
-          {/* Interruptor Discreto: GPS Real / Modo Simulación */}
-          <button
-            onClick={() => onToggleSimulation(!simulationMode)}
-            className="flex items-center gap-2 rounded-full bg-[#10121A]/85 backdrop-blur-xl border border-white/10 px-3.5 py-2 text-xs font-medium text-zinc-300 hover:text-white active:scale-95 transition shadow-lg"
-            title="Alternar entre GPS Nativo y Simulador de Ruta en Vivo"
-          >
-            {simulationMode ? (
-              <>
-                <Sparkles className="w-3.5 h-3.5 text-[#00D9F5]" />
-                <span>Modo Simulación</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#00D9F5]/15 text-[#00D9F5] font-semibold">
-                  ON
-                </span>
-              </>
-            ) : (
-              <>
-                <Satellite className={`w-3.5 h-3.5 ${palette.textClass}`} />
-                <span>GPS Real</span>
-              </>
-            )}
-          </button>
         </div>
       </header>
 
-      {/* 3. HUD FLOTANTE INFERIOR + SELECTOR DE MODO DE CARRERA */}
-      <section className="absolute bottom-20 inset-x-0 z-20 px-4 pointer-events-none flex flex-col items-center">
+      {/* 3. HUD FLOTANTE INFERIOR ("INICIAR CARRERA") + SELECTOR DE MODO DE CARRERA */}
+      <section className="absolute bottom-20 left-0 right-0 z-50 px-4 pointer-events-none flex flex-col items-center">
         {/* BADGE ÁMBAR PULSANTE DE AUTO-PAUSA EN SEMÁFOROS */}
         {status === 'running' && isAutoPaused && (
           <div className="pointer-events-auto mb-2.5 rounded-full bg-amber-500/20 backdrop-blur-xl border border-amber-400/40 px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-300 shadow-lg animate-pulse">
@@ -551,7 +506,7 @@ export const LiveRunView: React.FC<LiveRunViewProps> = ({
               {(status === 'running' || status === 'paused') && (
                 <button
                   onClick={() => setIsPocketMode(true)}
-                  className="flex items-center gap-1 text-[11px] font-medium text-zinc-300 hover:text-white transition px-2.5 py-0.5 rounded-full bg-white/10 border border-white/10"
+                  className="flex items-center gap-1 text-[11px] font-medium text-zinc-200 hover:text-white transition px-2.5 py-1 rounded-full bg-white/10 border border-white/15 active:scale-95"
                   title="Activar Modo Bolsillo (Pantalla Negra OLED ahorradora de batería)"
                 >
                   <Lock className={`w-3 h-3 ${palette.textClass}`} />

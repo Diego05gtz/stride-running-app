@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigation, Sparkles, X } from 'lucide-react';
+import { Navigation, X } from 'lucide-react';
 import { AccentTheme } from '../types/run';
 import { ACCENT_PALETTES } from '../utils/theme';
 
@@ -8,7 +8,6 @@ interface PermissionModalProps {
   message: string | null;
   accent: AccentTheme;
   onClose: () => void;
-  onEnableSimulator: () => void;
 }
 
 export const PermissionModal: React.FC<PermissionModalProps> = ({
@@ -16,13 +15,12 @@ export const PermissionModal: React.FC<PermissionModalProps> = ({
   message,
   accent,
   onClose,
-  onEnableSimulator,
 }) => {
   if (!isOpen) return null;
   const palette = ACCENT_PALETTES[accent];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/75 backdrop-blur-md animate-fadeIn">
+    <div className="fixed inset-0 z-50 h-[100dvh] min-h-[100dvh] flex items-center justify-center p-5 bg-black/75 backdrop-blur-md animate-fadeIn">
       <div className="relative w-full max-w-sm rounded-3xl bg-[#10121A] border border-white/10 p-6 shadow-2xl">
         <button
           onClick={onClose}
@@ -47,16 +45,8 @@ export const PermissionModal: React.FC<PermissionModalProps> = ({
 
         <div className="mt-6 flex flex-col gap-2.5">
           <button
-            onClick={onEnableSimulator}
-            className={`w-full flex items-center justify-center gap-2 rounded-2xl py-3.5 px-4 font-semibold text-sm text-[#090A0F] ${palette.bgClass} active:scale-[0.98] transition`}
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Usar Modo Simulación en Vivo</span>
-          </button>
-
-          <button
             onClick={onClose}
-            className="w-full rounded-2xl py-3 px-4 text-xs font-medium text-zinc-400 hover:text-white hover:bg-white/5 transition"
+            className={`w-full rounded-2xl py-3.5 px-4 font-semibold text-sm text-[#090A0F] ${palette.bgClass} active:scale-[0.98] transition`}
           >
             Entendido, revisaré mis permisos
           </button>

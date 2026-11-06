@@ -9,7 +9,7 @@ import {
   useMapEvents,
 } from 'react-leaflet';
 import L from 'leaflet';
-import { LocateFixed, Layers, MapPin, Check, RotateCcw } from 'lucide-react';
+import { LocateFixed, Layers } from 'lucide-react';
 import { AccentTheme, GeoPoint } from '../types/run';
 import { ACCENT_PALETTES } from '../utils/theme';
 
@@ -57,8 +57,25 @@ interface KmPinMarker {
 }
 
 /**
+ * Calcula la coordenada desplazada verticalmente (+150px hacia el sur en el plano proyectado)
+ * para que el marcador del corredor quede en la mitad superior de la pantalla, libre del HUD inferior.
+ */
+const VERTICAL_HUD_OFFSET_PX = 150;
+
+function getUpperHalfCenterLatLng(
+  map: L.Map,
+  lat: number,
+  lng: number,
+  zoom: number
+): L.LatLng {
+  const projected = map.project([lat, lng], zoom);
+  const offsetPoint = projected.add([0, VERTICAL_HUD_OFFSET_PX]);
+  return map.unproject(offsetPoint, zoom);
+}
+
+/**
  * Subcomponente dedicado exclusivamente a responder al primer clic en "Centrar"
- * escuchando los incrementos de centerTrigger (prev => prev + 1).
+ * escuchando los incrementos de centerTrigger (prev => prev + 1) y ubicando el marcador en la mitad superior.
  */
 function MapCenterTriggerController({
   centerTrigger,
@@ -80,7 +97,9 @@ function MapCenterTriggerController({
     lastPannedRef.current = [lat, lng];
 
     map.stop();
-    map.flyTo([lat, lng], Math.max(map.getZoom(), 18), {
+    const targetZoom = Math.max(map.getZoom(), 18);
+    const offsetCenter = getUpperHalfCenterLatLng(map, lat, lng, targetZoom);
+    map.flyTo(offsetCenter, targetZoom, {
       animate: true,
       duration: 0.5,
     });
@@ -90,7 +109,7 @@ function MapCenterTriggerController({
 }
 
 /**
- * Controlador interno de cámara automática y eventos de clic para calibración manual.
+ * Controlador interno de cámara automática (con offset superior) y eventos de clic para calibración manual.
  */
 function MapCameraAndEventsController({
   lat,
@@ -116,6 +135,7 @@ function MapCameraAndEventsController({
   const map = useMap();
   const lastPanTimeRef = useRef<number>(0);
   const hasFittedRef = useRef<boolean>(false);
+  const hasInitialOffsetRef = useRef<boolean>(false);
 
   useMapEvents({
     dragstart: () => {
@@ -130,6 +150,19 @@ function MapCameraAndEventsController({
     },
   });
 
+  // Aplicar el offset superior desde el montaje inicial para que el HUD inferior no tape el marcador
+  useEffect(() => {
+    if (fitBoundsMode || hasInitialOffsetRef.current) return;
+    hasInitialOffsetRef.current = true;
+    const offsetCenter = getUpperHalfCenterLatLng(
+      map,
+      lat,
+      lng,
+      map.getZoom()
+    );
+    map.setView(offsetCenter, map.getZoom(), { animate: false });
+  }, [fitBoundsMode, lat, lng, map]);
+
   // Efecto exclusivo para modo Póster (fitBounds estático una sola vez por ruta)
   useEffect(() => {
     if (!fitBoundsMode || coords.length <= 1) return;
@@ -140,7 +173,7 @@ function MapCameraAndEventsController({
     map.fitBounds(bounds, { padding: [38, 38], animate: false });
   }, [fitBoundsMode, coords, map]);
 
-  // Efecto con throttling de 1s para centrar cámara solo cuando lat/lng cambian realmente
+  // Efecto con throttling de 1s para centrar cámara en la mitad superior solo cuando lat/lng cambian realmente
   useEffect(() => {
     if (fitBoundsMode || !autoFollow) return;
 
@@ -156,7 +189,13 @@ function MapCameraAndEventsController({
 
     lastPannedRef.current = [lat, lng];
     lastPanTimeRef.current = now;
-    map.panTo([lat, lng], { animate: true, duration: 0.5 });
+    const offsetCenter = getUpperHalfCenterLatLng(
+      map,
+      lat,
+      lng,
+      map.getZoom()
+    );
+    map.panTo(offsetCenter, { animate: true, duration: 0.5 });
   }, [lat, lng, autoFollow, fitBoundsMode, map, lastPannedRef]);
 
   return null;
@@ -307,7 +346,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({
 
   return (
     <div
-      className={`relative w-full h-full bg-[#090A0F] select-none ${
+      className={`relative isolate z-0 w-full h-full bg-[#090A0F] select-none ${
         provider === 'nocturno-hd' ? 'map-theme-dark' : ''
       } ${isCalibratingClick ? 'cursor-calibrate' : ''}`}
     >
@@ -498,21 +537,11 @@ export const LiveMap: React.FC<LiveMapProps> = ({
       </MapContainer>
 
       {/* Viñeta sutil superior e inferior para integrar el mapa con la UI oscura */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-[#090A0F]/90 via-[#090A0F]/40 to-transparent z-10" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-[#090A0F] via-[#090A0F]/60 to-transparent z-10" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-[#090A0F]/90 via-[#090A0F]/40 to-transparent z-[400]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-[#090A0F] via-[#090A0F]/60 to-transparent z-[400]" />
 
-      {/* Aviso flotante cuando el usuario activa "📍 Calibrar Punto" */}
-      {!fitBoundsMode && isCalibratingClick && (
-        <div className="absolute top-16 left-4 right-36 z-20 rounded-2xl bg-[#10121A]/95 backdrop-blur-xl border border-white/15 px-3.5 py-2 text-xs text-white shadow-xl flex items-center gap-2">
-          <MapPin className={`w-4 h-4 shrink-0 ${palette.textClass}`} />
-          <span>
-            Toca tu calle o puerta exacta en el mapa (o arrastra el marcador verde)
-          </span>
-        </div>
-      )}
-
-      {/* Controles flotantes laterales: Centrar (al primer clic) + Selector de Capas HD + Calibrar / Restablecer */}
-      <div className="absolute right-4 top-16 z-20 flex flex-col items-end gap-2">
+      {/* Controles flotantes laterales limpios: únicamente Centrar + Selector de Capas HD */}
+      <div className="absolute right-4 top-16 z-[450] flex flex-col items-end gap-2">
         {!fitBoundsMode && (
           <button
             onClick={handleCenterClick}
@@ -534,53 +563,6 @@ export const LiveMap: React.FC<LiveMapProps> = ({
           <Layers className={`w-3.5 h-3.5 ${palette.textClass}`} />
           <span>{PROVIDER_META[provider].shortLabel}</span>
         </button>
-
-        {!fitBoundsMode && canCalibrate && onCalibratePosition && (
-          <div className="flex items-center gap-1.5">
-            {isCalibrated && onResetCalibration && (
-              <button
-                onClick={() => {
-                  onResetCalibration();
-                  handleCenterClick();
-                }}
-                className="flex items-center gap-1 rounded-full bg-[#10121A]/90 hover:bg-[#10121A] backdrop-blur-md border border-white/10 px-2.5 py-1.5 text-[11px] font-medium text-zinc-300 hover:text-white shadow-lg active:scale-95 transition"
-                title="Borrar punto calibrado guardado y volver a la lectura original del GPS"
-              >
-                <RotateCcw className="w-3 h-3 text-amber-400" />
-                <span>🎯 Restablecer a GPS</span>
-              </button>
-            )}
-
-            <button
-              onClick={() => setIsCalibratingClick((prev) => !prev)}
-              className={`flex items-center gap-1.5 rounded-full backdrop-blur-md border px-3 py-1.5 text-[11px] font-medium shadow-lg active:scale-95 transition ${
-                isCalibratingClick
-                  ? `${palette.bgClass} text-[#090A0F] border-transparent font-bold`
-                  : isCalibrated
-                  ? 'bg-[#10121A]/90 border-white/20 text-white'
-                  : 'bg-[#10121A]/85 hover:bg-[#10121A] border-white/10 text-zinc-300 hover:text-white'
-              }`}
-              title="Ajustar manualmente el punto de salida tocando el mapa o arrastrando el marcador"
-            >
-              {isCalibrated && !isCalibratingClick ? (
-                <Check className={`w-3.5 h-3.5 ${palette.textClass}`} />
-              ) : (
-                <MapPin
-                  className={`w-3.5 h-3.5 ${
-                    isCalibratingClick ? 'text-[#090A0F]' : palette.textClass
-                  }`}
-                />
-              )}
-              <span>
-                {isCalibratingClick
-                  ? 'Toca el mapa...'
-                  : isCalibrated
-                  ? '📍 Punto Calibrado'
-                  : '📍 Calibrar Punto'}
-              </span>
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

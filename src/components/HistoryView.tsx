@@ -102,7 +102,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   };
 
   return (
-    <div className="w-full h-full overflow-y-auto px-5 pt-8 pb-28 max-w-lg mx-auto">
+    <div className="w-full h-[100dvh] min-h-[100dvh] overflow-y-auto px-5 pt-8 pb-28 max-w-lg mx-auto">
       {/* CABECERA: Protagonista Visual + Botón Importar GPX */}
       <header className="mb-6 flex items-start justify-between gap-3">
         <div>

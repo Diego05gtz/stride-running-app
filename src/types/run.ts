@@ -1,6 +1,6 @@
 export type UnitSystem = 'km' | 'mi';
 export type AccentTheme = 'mint' | 'cyan' | 'orange';
-export type GpsSignalQuality = 'excellent' | 'good' | 'poor' | 'searching' | 'simulated';
+export type GpsSignalQuality = 'excellent' | 'good' | 'poor' | 'searching';
 export type PermissionStateStatus = 'prompt' | 'granted' | 'denied';
 export type RunStatus = 'idle' | 'running' | 'paused' | 'completed';
 export type WorkoutMode = 'free' | 'goal' | 'intervals';
@@ -34,7 +34,7 @@ export interface RunActivity {
   calories: number;
   path: GeoPoint[];
   splits: Split[];
-  isSimulated: boolean;
+  isSimulated?: boolean;
   badge?: string;
   feeling?: RunFeeling;
   note?: string;
@@ -43,7 +43,6 @@ export interface RunActivity {
 export interface UserPreferences {
   unit: UnitSystem;
   weeklyGoalKm: number;
-  simulationMode: boolean;
   accent: AccentTheme;
   voiceCoachEnabled: boolean;
   autoPauseEnabled: boolean;

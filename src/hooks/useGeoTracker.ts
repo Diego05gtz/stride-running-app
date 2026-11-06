@@ -14,7 +14,6 @@ import {
 import {
   calculateRollingPaceSecondsPerKm,
   computeSplitsFromPath,
-  generateSimulatedNextCoords,
   isValidGpsStep,
 } from '../utils/geoMath';
 import { calculateMetabolicCalories } from '../utils/storage';
@@ -45,22 +44,18 @@ function loadCalibratedHome(): [number, number] | null {
 }
 
 interface UseGeoTrackerOptions {
-  simulationMode: boolean;
   voiceCoachEnabled: boolean;
   autoPauseEnabled: boolean;
   weightKg: number;
   unit: UnitSystem;
-  onToggleSimulation: (enabled: boolean) => void;
   onRunCompleted: (activity: RunActivity) => void;
 }
 
 export function useGeoTracker({
-  simulationMode,
   voiceCoachEnabled,
   autoPauseEnabled,
   weightKg,
   unit,
-  onToggleSimulation,
   onRunCompleted,
 }: UseGeoTrackerOptions) {
   const initialSavedHome = loadCalibratedHome();
@@ -83,9 +78,8 @@ export function useGeoTracker({
     initialSavedHome ?? DEFAULT_CENTER
   );
   const [accuracyMeters, setAccuracyMeters] = useState<number | null>(null);
-  const [signalQuality, setSignalQuality] = useState<GpsSignalQuality>(
-    simulationMode ? 'simulated' : 'searching'
-  );
+  const [signalQuality, setSignalQuality] =
+    useState<GpsSignalQuality>('searching');
   const [isCalibrated, setIsCalibrated] = useState<boolean>(
     initialSavedHome !== null
   );
@@ -131,7 +125,6 @@ export function useGeoTracker({
 
   const pathRef = useRef<GeoPoint[]>([]);
   const distanceRef = useRef<number>(0);
-  const simStepRef = useRef<number>(0);
   const lastMovementTimeRef = useRef<number>(Date.now());
   const countdownTimerRef = useRef<number | null>(null);
 
@@ -187,24 +180,17 @@ export function useGeoTracker({
   }, []);
 
   // Evaluar calidad de señal según metros de precisión
-  const updateSignalQuality = useCallback(
-    (acc: number | null, isSim: boolean) => {
-      if (isSim) {
-        setSignalQuality((prev) => (prev === 'simulated' ? prev : 'simulated'));
-        return;
-      }
-      if (acc === null) {
-        setSignalQuality((prev) => (prev === 'searching' ? prev : 'searching'));
-      } else if (acc <= 15) {
-        setSignalQuality((prev) => (prev === 'excellent' ? prev : 'excellent'));
-      } else if (acc <= 40) {
-        setSignalQuality((prev) => (prev === 'good' ? prev : 'good'));
-      } else {
-        setSignalQuality((prev) => (prev === 'poor' ? prev : 'poor'));
-      }
-    },
-    []
-  );
+  const updateSignalQuality = useCallback((acc: number | null) => {
+    if (acc === null) {
+      setSignalQuality((prev) => (prev === 'searching' ? prev : 'searching'));
+    } else if (acc <= 15) {
+      setSignalQuality((prev) => (prev === 'excellent' ? prev : 'excellent'));
+    } else if (acc <= 40) {
+      setSignalQuality((prev) => (prev === 'good' ? prev : 'good'));
+    } else {
+      setSignalQuality((prev) => (prev === 'poor' ? prev : 'poor'));
+    }
+  }, []);
 
   // Calibración manual con Pin Lock y persistencia en localStorage (stride_calibrated_home)
   const calibratePosition = useCallback((targetLat: number, targetLng: number) => {
@@ -260,20 +246,15 @@ export function useGeoTracker({
 
     const [rawLat, rawLng] = rawPositionRef.current;
     currentPosRef.current = [rawLat, rawLng];
-    setCurrentPosition([rawLat, targetLngOrDefault(rawLng)]);
+    setCurrentPosition([rawLat, rawLng]);
   }, []);
 
-  function targetLngOrDefault(val: number): number {
-    return val;
-  }
-
-  // Procesar coordenada con Desbloqueo Automático al Correr, Offset Inteligente y Seguimiento Continuo
+  // Procesar coordenada GPS real con Desbloqueo Automático al Correr, Offset Inteligente y Seguimiento Continuo
   const ingestCoordinate = useCallback(
     (
       incomingRawLat: number,
       incomingRawLng: number,
       accuracy: number,
-      isSim: boolean,
       forceImmediate = false
     ) => {
       const now = Date.now();
@@ -281,7 +262,7 @@ export function useGeoTracker({
       let refinedRawLng = incomingRawLng;
 
       // Refinamiento Satelital Continuo: Cuando accuracy <= 20m, promediar las 3 lecturas más recientes ponderadas por 1/(accuracy^2)
-      if (!isSim && accuracy <= 20) {
+      if (accuracy <= 20) {
         const clampedAcc = Math.max(accuracy, 1);
         const nextBuffer = [
           ...recentFineFixesRef.current.slice(-2),
@@ -308,12 +289,11 @@ export function useGeoTracker({
 
       const roundedAcc = Math.round(accuracy);
       setAccuracyMeters((prev) => (prev === roundedAcc ? prev : roundedAcc));
-      updateSignalQuality(accuracy, isSim);
+      updateSignalQuality(accuracy);
 
       // 1. BLOQUEO DE DERIVA (Pin Lock): SOLO ACTIVO EN ESTADO 'idle'
       // En cuanto la carrera pasa a 'running', el Pin Lock queda 100% desactivado.
       if (
-        !isSim &&
         statusRef.current === 'idle' &&
         pinLockRef.current &&
         calibratedHomeRef.current !== null
@@ -343,7 +323,7 @@ export function useGeoTracker({
       // 2. CALIBRATION OFFSET INTELIGENTE EN MOVIMIENTO:
       // Si la carrera está en 'running' y el GPS satelital del móvil ya tiene buena precisión (accuracy <= 20m),
       // usamos directamente las coordenadas reales del satélite al avanzar para no arrastrar un offset artificial de Wi-Fi.
-      if (statusRef.current === 'running' && !isSim && accuracy <= 20) {
+      if (statusRef.current === 'running' && accuracy <= 20) {
         calibrationOffsetRef.current = { latOffset: 0, lngOffset: 0 };
       }
 
@@ -408,7 +388,7 @@ export function useGeoTracker({
         lng,
         now,
         accuracy,
-        isSim
+        false
       );
 
       if (!validation.valid) {
@@ -596,44 +576,17 @@ export function useGeoTracker({
     }
   }, [autoPauseEnabled, isAutoPaused]);
 
-  // Efecto 1: Motor de Simulación (se ejecuta cada 1000ms solo cuando simulationMode=true y status='running')
-  useEffect(() => {
-    if (!simulationMode) return;
-
-    setSignalQuality('simulated');
-    setAccuracyMeters(4);
-
-    if (status !== 'running') return;
-
-    const simInterval = window.setInterval(() => {
-      simStepRef.current += 1;
-      const [curRawLat, curRawLng] = rawPositionRef.current;
-      const next = generateSimulatedNextCoords(
-        curRawLat,
-        curRawLng,
-        simStepRef.current
-      );
-      ingestCoordinate(next.lat, next.lng, next.accuracy, true, true);
-    }, 1000);
-
-    return () => clearInterval(simInterval);
-  }, [simulationMode, status, ingestCoordinate]);
-
-  // Efecto 2: Motor GPS Real con Prioridad de Alta Precisión (enableHighAccuracy: true, maximumAge: 0)
+  // Motor GPS Real Permanente con Prioridad de Alta Precisión (enableHighAccuracy: true, maximumAge: 0)
   useEffect(() => {
     if (watchIdRef.current !== null && 'geolocation' in navigator) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
 
-    if (simulationMode) {
-      return;
-    }
-
     if (!('geolocation' in navigator)) {
       setPermissionState('denied');
       setPermissionErrorMsg(
-        'Tu navegador no soporta geolocalización nativa. Puedes usar el Modo Simulación.'
+        'Tu navegador no soporta geolocalización nativa. Verifica los permisos de ubicación de tu dispositivo.'
       );
       setShowPermissionModal(true);
       return;
@@ -654,7 +607,6 @@ export function useGeoTracker({
           pos.coords.latitude,
           pos.coords.longitude,
           pos.coords.accuracy,
-          false,
           true
         );
       },
@@ -663,7 +615,7 @@ export function useGeoTracker({
         if (err.code === err.PERMISSION_DENIED) {
           setPermissionState('denied');
           setPermissionErrorMsg(
-            'El permiso de ubicación fue denegado. Actívalo en tu navegador o cambia al Modo Simulación para probar la app en vivo.'
+            'El permiso de ubicación fue denegado. Actívalo en los ajustes de tu navegador para rastrear tu ruta GPS en vivo.'
           );
           setShowPermissionModal(true);
         } else {
@@ -676,7 +628,6 @@ export function useGeoTracker({
                 fallbackPos.coords.latitude,
                 fallbackPos.coords.longitude,
                 fallbackPos.coords.accuracy,
-                false,
                 true
               );
             },
@@ -707,7 +658,6 @@ export function useGeoTracker({
           pos.coords.latitude,
           pos.coords.longitude,
           pos.coords.accuracy,
-          false,
           false
         );
       },
@@ -716,7 +666,7 @@ export function useGeoTracker({
         if (err.code === err.PERMISSION_DENIED) {
           setPermissionState('denied');
           setPermissionErrorMsg(
-            'El permiso de ubicación fue denegado. Actívalo en tu navegador o cambia al Modo Simulación para probar la app en vivo.'
+            'El permiso de ubicación fue denegado. Actívalo en los ajustes de tu navegador para rastrear tu ruta GPS en vivo.'
           );
           setShowPermissionModal(true);
         } else {
@@ -727,7 +677,6 @@ export function useGeoTracker({
                 fallbackPos.coords.latitude,
                 fallbackPos.coords.longitude,
                 fallbackPos.coords.accuracy,
-                false,
                 true
               );
             },
@@ -758,7 +707,7 @@ export function useGeoTracker({
         watchIdRef.current = null;
       }
     };
-  }, [simulationMode, ingestCoordinate]);
+  }, [ingestCoordinate]);
 
   // Arrancar carrera inmediatamente tras el 3-2-1: desbloquea Pin Lock y fija points[0]
   const executeStartRunNow = useCallback(() => {
@@ -783,14 +732,13 @@ export function useGeoTracker({
       lat: startLat,
       lng: startLng,
       timestamp: now,
-      accuracy: simulationMode ? 4 : accuracyMeters ?? 15,
+      accuracy: accuracyMeters ?? 15,
       speed: 0,
       cumulativeDistanceKm: 0,
     };
 
     pathRef.current = [initialPoint];
     distanceRef.current = 0;
-    simStepRef.current = 0;
     lastMovementTimeRef.current = now;
     lastAnnouncedMilestoneRef.current = 0;
     goalHalfwayAnnouncedRef.current = false;
@@ -813,11 +761,11 @@ export function useGeoTracker({
     } else {
       audioCoachRef.current.announceStart();
     }
-  }, [simulationMode, accuracyMeters]);
+  }, [accuracyMeters]);
 
   // Iniciar cuenta regresiva 3-2-1-¡YA! sincronizada con voz
   const startRun = useCallback(() => {
-    if (!simulationMode && permissionState === 'denied') {
+    if (permissionState === 'denied') {
       setShowPermissionModal(true);
       return;
     }
@@ -841,7 +789,7 @@ export function useGeoTracker({
         executeStartRunNow();
       }
     }, 900);
-  }, [simulationMode, permissionState, executeStartRunNow]);
+  }, [permissionState, executeStartRunNow]);
 
   useEffect(() => {
     return () => {
@@ -924,7 +872,7 @@ export function useGeoTracker({
 
     const completedActivity: RunActivity = {
       id: `run-${now}`,
-      title: simulationMode ? `${baseLabel} (Sim)` : baseLabel,
+      title: baseLabel,
       dateIso: new Date().toISOString(),
       durationSeconds: finalDur,
       distanceKm: Number(finalDist.toFixed(2)),
@@ -947,7 +895,7 @@ export function useGeoTracker({
               },
             ],
       splits: computeSplitsFromPath(pathRef.current),
-      isSimulated: simulationMode,
+      isSimulated: false,
       badge:
         workoutModeRef.current === 'goal' &&
         finalDist >= goalDistanceKmRef.current
@@ -960,12 +908,7 @@ export function useGeoTracker({
     statusRef.current = 'idle';
     setStatus('idle');
     onRunCompleted(completedActivity);
-  }, [durationSeconds, simulationMode, onRunCompleted, computeEffectiveDurationSec]);
-
-  const switchToSimulatorFromModal = useCallback(() => {
-    onToggleSimulation(true);
-    setShowPermissionModal(false);
-  }, [onToggleSimulation]);
+  }, [durationSeconds, onRunCompleted, computeEffectiveDurationSec]);
 
   // Datos derivados de Intervalos (1' Rápido / 1' Suave)
   const currentMinuteIndex = Math.floor(durationSeconds / 60);
@@ -1005,6 +948,5 @@ export function useGeoTracker({
     pauseRun,
     resumeRun,
     finishRun,
-    switchToSimulatorFromModal,
   };
 }

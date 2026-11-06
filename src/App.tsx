@@ -66,13 +66,6 @@ export const App: React.FC = () => {
     []
   );
 
-  const handleToggleSimulation = useCallback(
-    (enabled: boolean) => {
-      handleUpdatePrefs({ simulationMode: enabled });
-    },
-    [handleUpdatePrefs]
-  );
-
   const handleToggleVoiceCoach = useCallback(
     (enabled: boolean) => {
       handleUpdatePrefs({ voiceCoachEnabled: enabled });
@@ -88,21 +81,19 @@ export const App: React.FC = () => {
   );
 
   const tracker = useGeoTracker({
-    simulationMode: prefs.simulationMode,
     voiceCoachEnabled: prefs.voiceCoachEnabled,
     autoPauseEnabled: prefs.autoPauseEnabled,
     weightKg: prefs.weightKg || 70,
     unit: prefs.unit,
-    onToggleSimulation: handleToggleSimulation,
     onRunCompleted: handleRunCompleted,
   });
 
   const palette = ACCENT_PALETTES[prefs.accent];
 
   return (
-    <div className="relative w-full h-full flex flex-col bg-[#090A0F] text-white overflow-hidden select-none">
+    <div className="relative w-full h-[100dvh] min-h-[100dvh] flex flex-col bg-[#090A0F] text-white overflow-hidden select-none">
       {/* ÁREA DE CONTENIDO PRINCIPAL */}
-      <main className="relative flex-1 w-full h-full overflow-hidden">
+      <main className="relative flex-1 w-full h-[100dvh] min-h-[100dvh] overflow-hidden">
         {activeTab === 'live' && (
           <LiveRunView
             status={tracker.status}
@@ -123,7 +114,6 @@ export const App: React.FC = () => {
             path={tracker.path}
             splits={tracker.splits}
             isWakeLockActive={tracker.isWakeLockActive}
-            simulationMode={prefs.simulationMode}
             voiceCoachEnabled={prefs.voiceCoachEnabled}
             autoPauseEnabled={prefs.autoPauseEnabled}
             weightKg={prefs.weightKg || 70}
@@ -134,7 +124,6 @@ export const App: React.FC = () => {
             onSelectGoalDistance={tracker.setGoalDistanceKm}
             onCalibratePosition={tracker.calibratePosition}
             onResetCalibration={tracker.resetCalibration}
-            onToggleSimulation={handleToggleSimulation}
             onToggleVoiceCoach={handleToggleVoiceCoach}
             onToggleAutoPause={handleToggleAutoPause}
             onStart={tracker.startRun}
@@ -167,8 +156,11 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {/* BOTTOM NAVIGATION ESTILO APP MÓVIL DEPORTIVA */}
-      <nav className="fixed bottom-0 inset-x-0 z-30 pointer-events-none flex justify-center px-4 pb-3">
+      {/* BOTTOM NAVIGATION ESTILO APP MÓVIL DEPORTIVA CON SAFE AREA (iOS/Android) */}
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none flex justify-center px-4 pb-3 pb-safe"
+        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+      >
         <div className="pointer-events-auto w-full max-w-md rounded-2xl bg-[#10121A]/90 backdrop-blur-2xl border border-white/10 px-3 py-1.5 flex items-center justify-around shadow-2xl">
           <button
             onClick={() => setActiveTab('live')}
@@ -236,7 +228,6 @@ export const App: React.FC = () => {
         message={tracker.permissionErrorMsg}
         accent={prefs.accent}
         onClose={() => tracker.setShowPermissionModal(false)}
-        onEnableSimulator={tracker.switchToSimulatorFromModal}
       />
     </div>
   );
