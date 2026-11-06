@@ -126,7 +126,10 @@ export const ProfileGoalsView: React.FC<ProfileGoalsViewProps> = ({
   const strokeDashoffset = circumference * (1 - progressRatio);
 
   return (
-    <div className="w-full h-[100dvh] min-h-[100dvh] overflow-y-auto px-5 pt-8 pb-28 max-w-lg mx-auto">
+    <div
+      className="w-full h-[100dvh] min-h-[100dvh] overflow-y-auto px-5 pb-28 max-w-lg mx-auto"
+      style={{ paddingTop: 'max(1.5rem, calc(env(safe-area-inset-top) + 0.75rem))' }}
+    >
       <header className="text-center mb-5">
         <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
           Objetivo Semanal

@@ -346,58 +346,66 @@ export const LiveRunView: React.FC<LiveRunViewProps> = ({
         </div>
       )}
 
-      {/* 2. BARRA SUPERIOR FLOTANTE: Únicamente Indicador Dinámico GPS Conectado (±Xm) + Audio Coach */}
-      <header className="absolute top-0 left-0 right-0 z-50 px-4 pt-4 flex items-center justify-between gap-2 pointer-events-none">
-        {/* Indicador minimalista de calidad GPS */}
-        <div className="pointer-events-auto flex items-center gap-2.5 rounded-full bg-[#10121A]/85 backdrop-blur-xl border border-white/10 px-3.5 py-2 shadow-lg">
-          <span className="relative flex h-2.5 w-2.5">
-            <span
-              className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${signalMeta.dotClass}`}
-            />
-            <span
-              className={`relative inline-flex rounded-full h-2.5 w-2.5 ${signalMeta.dotClass}`}
-            />
-          </span>
-          <span className="text-xs font-medium text-zinc-200 tracking-tight">
-            {signalMeta.label}
-          </span>
-          {isWakeLockActive && (
-            <span
-              title="Pantalla siempre activa (Wake Lock)"
-              className="ml-0.5 text-[10px] text-zinc-400 flex items-center gap-0.5 border-l border-white/10 pl-2"
-            >
-              <Smartphone className="w-3 h-3 text-[#00F5A0]" />
+      {/* 2. BARRA SUPERIOR FLOTANTE: Despejada del Notch/Isla Dinámica de iOS */}
+      <header
+        className="absolute top-0 left-0 right-0 z-50 px-4 pt-4 pointer-events-none"
+        style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
+      >
+        <div className="mt-1.5 flex items-center justify-between gap-2">
+          {/* Indicador minimalista de calidad GPS */}
+          <div className="pointer-events-auto flex items-center gap-2.5 rounded-full bg-[#10121A]/85 backdrop-blur-xl border border-white/10 px-3.5 py-2 shadow-lg">
+            <span className="relative flex h-2.5 w-2.5">
+              <span
+                className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${signalMeta.dotClass}`}
+              />
+              <span
+                className={`relative inline-flex rounded-full h-2.5 w-2.5 ${signalMeta.dotClass}`}
+              />
             </span>
-          )}
-        </div>
-
-        {/* Control Superior Derecha: Entrenador de Voz */}
-        <div className="pointer-events-auto flex items-center gap-2">
-          <button
-            onClick={() => onToggleVoiceCoach(!voiceCoachEnabled)}
-            className={`flex items-center justify-center w-9 h-9 rounded-full bg-[#10121A]/85 backdrop-blur-xl border border-white/10 transition active:scale-95 shadow-lg ${
-              voiceCoachEnabled
-                ? palette.textClass
-                : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-            title={
-              voiceCoachEnabled
-                ? 'Entrenador de voz activo (clic para silenciar)'
-                : 'Entrenador de voz silenciado (clic para activar)'
-            }
-            aria-label="Alternar entrenador de voz"
-          >
-            {voiceCoachEnabled ? (
-              <Volume2 className="w-4 h-4" />
-            ) : (
-              <VolumeX className="w-4 h-4" />
+            <span className="text-xs font-medium text-zinc-200 tracking-tight">
+              {signalMeta.label}
+            </span>
+            {isWakeLockActive && (
+              <span
+                title="Pantalla siempre activa (Wake Lock)"
+                className="ml-0.5 text-[10px] text-zinc-400 flex items-center gap-0.5 border-l border-white/10 pl-2"
+              >
+                <Smartphone className="w-3 h-3 text-[#00F5A0]" />
+              </span>
             )}
-          </button>
+          </div>
+
+          {/* Control Superior Derecha: Entrenador de Voz */}
+          <div className="pointer-events-auto flex items-center gap-2">
+            <button
+              onClick={() => onToggleVoiceCoach(!voiceCoachEnabled)}
+              className={`flex items-center justify-center w-9 h-9 rounded-full bg-[#10121A]/85 backdrop-blur-xl border border-white/10 transition active:scale-95 shadow-lg ${
+                voiceCoachEnabled
+                  ? palette.textClass
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+              title={
+                voiceCoachEnabled
+                  ? 'Entrenador de voz activo (clic para silenciar)'
+                  : 'Entrenador de voz silenciado (clic para activar)'
+              }
+              aria-label="Alternar entrenador de voz"
+            >
+              {voiceCoachEnabled ? (
+                <Volume2 className="w-4 h-4" />
+              ) : (
+                <VolumeX className="w-4 h-4" />
+              )}
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* 3. HUD FLOTANTE INFERIOR ("INICIAR CARRERA") + SELECTOR DE MODO DE CARRERA */}
-      <section className="absolute bottom-20 left-0 right-0 z-50 px-4 pointer-events-none flex flex-col items-center">
+      {/* 3. HUD FLOTANTE INFERIOR ("INICIAR CARRERA"): Reposando justo encima de la barra de navegación inferior */}
+      <section
+        className="absolute bottom-14 left-0 right-0 z-50 px-4 pointer-events-none flex flex-col items-center"
+        style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+      >
         {/* BADGE ÁMBAR PULSANTE DE AUTO-PAUSA EN SEMÁFOROS */}
         {status === 'running' && isAutoPaused && (
           <div className="pointer-events-auto mb-2.5 rounded-full bg-amber-500/20 backdrop-blur-xl border border-amber-400/40 px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-300 shadow-lg animate-pulse">
@@ -470,7 +478,7 @@ export const LiveRunView: React.FC<LiveRunViewProps> = ({
         )}
 
         {/* TARJETA HUD PRINCIPAL */}
-        <div className="pointer-events-auto w-full max-w-md rounded-[28px] bg-[#10121A]/85 backdrop-blur-2xl border border-white/10 p-5 shadow-[0_20px_50px_rgba(0,0,0,0.75)] transition-all duration-300">
+        <div className="pointer-events-auto mb-2 w-full max-w-md rounded-[28px] bg-[#10121A]/85 backdrop-blur-2xl border border-white/10 p-4 sm:p-5 shadow-[0_20px_50px_rgba(0,0,0,0.75)] transition-all duration-300">
           {/* Píldora sutil de estado, Modo Bolsillo OLED y botón de detalles */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">

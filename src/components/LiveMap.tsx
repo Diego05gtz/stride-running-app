@@ -540,29 +540,34 @@ export const LiveMap: React.FC<LiveMapProps> = ({
       <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-[#090A0F]/90 via-[#090A0F]/40 to-transparent z-[400]" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-[#090A0F] via-[#090A0F]/60 to-transparent z-[400]" />
 
-      {/* Controles flotantes laterales limpios: únicamente Centrar + Selector de Capas HD */}
-      <div className="absolute right-4 top-16 z-[450] flex flex-col items-end gap-2">
-        {!fitBoundsMode && (
-          <button
-            onClick={handleCenterClick}
-            className={`flex items-center gap-2 rounded-full bg-[#10121A]/90 hover:bg-[#10121A] backdrop-blur-md border px-3.5 py-1.5 text-xs font-medium text-white shadow-lg active:scale-95 transition ${
-              !autoFollow ? 'border-white/25' : 'border-white/10'
-            }`}
-            title="Centrar mapa inmediatamente en tu ubicación"
-          >
-            <LocateFixed className={`w-3.5 h-3.5 ${palette.textClass}`} />
-            <span>Centrar</span>
-          </button>
-        )}
+      {/* Controles flotantes laterales limpios: sincronizados con el Safe Area superior de iOS */}
+      <div
+        className="absolute top-0 right-4 z-[450] pointer-events-none"
+        style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
+      >
+        <div className="mt-14 flex flex-col items-end gap-2 pointer-events-auto">
+          {!fitBoundsMode && (
+            <button
+              onClick={handleCenterClick}
+              className={`flex items-center gap-2 rounded-full bg-[#10121A]/90 hover:bg-[#10121A] backdrop-blur-md border px-3.5 py-1.5 text-xs font-medium text-white shadow-lg active:scale-95 transition ${
+                !autoFollow ? 'border-white/25' : 'border-white/10'
+              }`}
+              title="Centrar mapa inmediatamente en tu ubicación"
+            >
+              <LocateFixed className={`w-3.5 h-3.5 ${palette.textClass}`} />
+              <span>Centrar</span>
+            </button>
+          )}
 
-        <button
-          onClick={handleCycleProvider}
-          className="flex items-center gap-2 rounded-full bg-[#10121A]/85 hover:bg-[#10121A] backdrop-blur-md border border-white/10 px-3 py-1.5 text-[11px] font-medium text-zinc-300 hover:text-white shadow-lg active:scale-95 transition"
-          title="Alternar entre Mapa Nocturno HD (Zoom 19) y Satélite Híbrido"
-        >
-          <Layers className={`w-3.5 h-3.5 ${palette.textClass}`} />
-          <span>{PROVIDER_META[provider].shortLabel}</span>
-        </button>
+          <button
+            onClick={handleCycleProvider}
+            className="flex items-center gap-2 rounded-full bg-[#10121A]/85 hover:bg-[#10121A] backdrop-blur-md border border-white/10 px-3 py-1.5 text-[11px] font-medium text-zinc-300 hover:text-white shadow-lg active:scale-95 transition"
+            title="Alternar entre Mapa Nocturno HD (Zoom 19) y Satélite Híbrido"
+          >
+            <Layers className={`w-3.5 h-3.5 ${palette.textClass}`} />
+            <span>{PROVIDER_META[provider].shortLabel}</span>
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -156,12 +156,12 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {/* BOTTOM NAVIGATION ESTILO APP MÓVIL DEPORTIVA CON SAFE AREA (iOS/Android) */}
+      {/* BOTTOM NAVIGATION ANCLADA ESTRICTAMENTE A BOTTOM-0 CON SAFE AREA DE iOS */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none flex justify-center px-4 pb-3 pb-safe"
-        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+        className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none flex justify-center px-4"
+        style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
       >
-        <div className="pointer-events-auto w-full max-w-md rounded-2xl bg-[#10121A]/90 backdrop-blur-2xl border border-white/10 px-3 py-1.5 flex items-center justify-around shadow-2xl">
+        <div className="pointer-events-auto w-full max-w-md h-14 rounded-2xl bg-[#10121A]/95 backdrop-blur-2xl border border-white/10 px-3 flex items-center justify-around shadow-2xl">
           <button
             onClick={() => setActiveTab('live')}
             className={`flex flex-col items-center gap-0.5 py-1.5 px-5 rounded-xl transition ${
