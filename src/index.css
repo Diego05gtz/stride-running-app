@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #090A0F;
+    color: #FFFFFF;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Estilizado ultra limpio para el contenedor de Leaflet */
+.leaflet-container {
+  background-color: #090A0F !important;
+  font-family: inherit;
+}
+
+/* Modo Nocturno HD: Aplicado una única vez a .leaflet-tile-pane dentro de .map-theme-dark */
+.map-theme-dark .leaflet-container {
+  background-color: #090A0F !important;
+}
+
+.map-theme-dark .leaflet-tile-pane {
+  filter: invert(100%) hue-rotate(180deg) grayscale(85%) brightness(88%) contrast(125%) !important;
+  will-change: transform;
+}
+
+/* Garantizar que ni la polilínea neón ni el marcador del corredor sufran inversión */
+.leaflet-overlay-pane,
+.leaflet-marker-pane {
+  filter: none !important;
+}
+
+/* Cursor tipo mira cuando el modo "Calibrar Punto" por toque está activo */
+.cursor-calibrate .leaflet-container {
+  cursor: crosshair !important;
+}
+
+/* Ocultar fondo por defecto de divIcon de Leaflet */
+.stride-runner-div-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Ocultar barras de desplazamiento manteniendo scroll funcional */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}

@@ -1,0 +1,20 @@
+{
+  "name": "STRIDE Running",
+  "short_name": "STRIDE",
+  "description": "Aplicación deportiva minimalista con rastreo GPS en tiempo real para corredores.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090A0F",
+  "theme_color": "#090A0F",
+  "categories": ["fitness", "health", "sports"],
+  "icons": [
+    {
+      "src": "/stride-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
